@@ -153,7 +153,6 @@
         let targetZoom = 0;
         let isLoaded = false;
 
-        // Device detection
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isTouch = 'ontouchstart' in window;
 
@@ -167,13 +166,14 @@
             canvas.style.width = width + 'px';
             canvas.style.height = height + 'px';
 
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
             ctx.scale(dpr, dpr);
         }
 
         window.addEventListener("resize", resize);
         resize();
 
-        // Preload frames with progress
+        // Preload frames
         function preloadFrames() {
             for (let i = 1; i <= TOTAL_FRAMES; i++) {
                 const num = String(i).padStart(PADDING, "0");
@@ -202,9 +202,9 @@
             }
         }
 
-        // Smooth zoom interpolation
+        // Smooth zoom easing
         function updateZoom() {
-            zoom += (targetZoom - zoom) * 0.1;
+            zoom += (targetZoom - zoom) * 0.08; // easing factor
             if (Math.abs(targetZoom - zoom) < 0.01) {
                 zoom = targetZoom;
             }
@@ -214,9 +214,8 @@
         window.addEventListener("wheel", (e) => {
             if (!isLoaded) return;
             e.preventDefault();
-
             const sensitivity = isMobile ? 0.003 : 0.002;
-            targetZoom += e.deltaY * sensitivity;
+            targetZoom += e.deltaY * sensitivity * 30; // faster response
             targetZoom = Math.max(0, Math.min(TOTAL_FRAMES - 1, targetZoom));
         }, { passive: false });
 
@@ -250,12 +249,10 @@
             canvas.style.cursor = 'grab';
         }
 
-        // Mouse events
         canvas.addEventListener("mousedown", handleStart);
         window.addEventListener("mousemove", handleMove);
         window.addEventListener("mouseup", handleEnd);
 
-        // Touch events
         canvas.addEventListener("touchstart", handleStart, { passive: false });
         window.addEventListener("touchmove", handleMove, { passive: false });
         window.addEventListener("touchend", handleEnd);
@@ -263,7 +260,6 @@
         // Keyboard controls
         window.addEventListener("keydown", (e) => {
             if (!isLoaded) return;
-
             switch (e.key) {
                 case 'ArrowUp':
                 case 'ArrowRight':
@@ -282,6 +278,7 @@
             }
         });
 
+        // Draw frame smoothly
         function drawFrame() {
             ctx.clearRect(0, 0, width, height);
 
@@ -289,78 +286,53 @@
             const nextFrameIndex = Math.min(frameIndex + 1, TOTAL_FRAMES - 1);
             const img = frames[frameIndex];
             const nextImg = frames[nextFrameIndex];
-
             if (!img || !img.complete) return;
 
-            // Calculate zoom effect - 3x zoom intensity
             const progress = zoom - frameIndex;
-            const scale = 1 + progress * 0.3; // 3x zoom scaling
 
-            // Calculate dimensions to maintain aspect ratio
-            const imgAspect = img.width / img.height;
+            // blend transition without blur
+            if (progress < 0.5 || !nextImg || !nextImg.complete) {
+                drawImageFit(img);
+            } else {
+                drawImageFit(nextImg);
+            }
+        }
+
+        function drawImageFit(image) {
+            const imgAspect = image.width / image.height;
             const canvasAspect = width / height;
 
             let drawWidth, drawHeight;
             if (imgAspect > canvasAspect) {
-                drawHeight = height * scale;
+                drawHeight = height;
                 drawWidth = drawHeight * imgAspect;
             } else {
-                drawWidth = width * scale;
+                drawWidth = width;
                 drawHeight = drawWidth / imgAspect;
             }
 
             const x = (width - drawWidth) / 2;
             const y = (height - drawHeight) / 2;
 
-            // Draw current frame
-            ctx.globalAlpha = 1 - progress;
-            ctx.drawImage(img, x, y, drawWidth, drawHeight);
-
-            // Blend with next frame for smooth transition
-            if (nextImg && nextImg.complete && progress > 0) {
-                const nextScale = 1 + (progress + 1) * 0.3;
-                let nextDrawWidth, nextDrawHeight;
-
-                if (imgAspect > canvasAspect) {
-                    nextDrawHeight = height * nextScale;
-                    nextDrawWidth = nextDrawHeight * imgAspect;
-                } else {
-                    nextDrawWidth = width * nextScale;
-                    nextDrawHeight = nextDrawWidth / imgAspect;
-                }
-
-                const nextX = (width - nextDrawWidth) / 2;
-                const nextY = (height - nextDrawHeight) / 2;
-
-                ctx.globalAlpha = progress;
-                ctx.drawImage(nextImg, nextX, nextY, nextDrawWidth, nextDrawHeight);
-            }
-
-            ctx.globalAlpha = 1;
+            ctx.drawImage(image, x, y, drawWidth, drawHeight);
         }
 
         function updateUI() {
             const currentFrame = Math.floor(zoom) + 1;
             frameInfo.textContent = `Frame: ${currentFrame} / ${TOTAL_FRAMES}`;
-
             const progress = (zoom / (TOTAL_FRAMES - 1)) * 100;
             progressFill.style.width = `${progress}%`;
         }
 
         function animate() {
             if (!isLoaded) return;
-
             updateZoom();
             drawFrame();
             updateUI();
-
             requestAnimationFrame(animate);
         }
 
-        // Start preloading
         preloadFrames();
-
-        // Prevent context menu on right click
         canvas.addEventListener('contextmenu', e => e.preventDefault());
     </script>
 </body>
