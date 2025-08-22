@@ -537,33 +537,64 @@
         resize();
 
         // Preload frames
+        // function preloadFrames() {
+        //     for (let i = 1; i <= TOTAL_FRAMES; i++) {
+        //         const num = String(i).padStart(PADDING, "0");
+        //         const img = new Image();
+
+        //         img.onload = () => {
+        //             loadedFrames++;
+        //             const progress = Math.round((loadedFrames / TOTAL_FRAMES) * 100);
+        //             loadingProgress.textContent = `${progress}%`;
+
+        //             if (loadedFrames === TOTAL_FRAMES) {
+        //                 isLoaded = true;
+        //                 loading.style.display = 'none';
+        //                 controls.style.display = 'block';
+        //                 animate();
+        //             }
+        //         };
+
+        
+        //         img.onerror = () => {
+        //             console.warn(`Failed to load frame ${i}`);
+        //             loadedFrames++;
+        //         };
+
+        //         img.src = `${FRAME_PATH}${num}${FRAME_EXT}`;
+        //         frames.push(img);
+        //     }
+        // }
+
         function preloadFrames() {
-            for (let i = 1; i <= TOTAL_FRAMES; i++) {
-                const num = String(i).padStart(PADDING, "0");
-                const img = new Image();
+                for (let i = 1; i <= TOTAL_FRAMES; i++) {
+                    const num = String(i).padStart(PADDING, "0");
+                    const img = new Image();
 
-                img.onload = () => {
-                    loadedFrames++;
-                    const progress = Math.round((loadedFrames / TOTAL_FRAMES) * 100);
-                    loadingProgress.textContent = `${progress}%`;
+                    img.onload = () => {
+                        frames[i - 1] = img; // store at correct index
+                        loadedFrames++;
+                        const progress = Math.round((loadedFrames / TOTAL_FRAMES) * 100);
+                        loadingProgress.textContent = `${progress}%`;
 
-                    if (loadedFrames === TOTAL_FRAMES) {
-                        isLoaded = true;
-                        loading.style.display = 'none';
-                        controls.style.display = 'block';
-                        animate();
-                    }
-                };
+                        if (loadedFrames === TOTAL_FRAMES) {
+                            isLoaded = true;
+                            loading.style.display = 'none';
+                            controls.style.display = 'block';
+                            animate();
+                        }
+                    };
 
-                img.onerror = () => {
-                    console.warn(`Failed to load frame ${i}`);
-                    loadedFrames++;
-                };
+                    img.onerror = () => {
+                        console.warn(`❌ Missing frame: ${FRAME_PATH}${num}${FRAME_EXT}`);
+                        frames[i - 1] = null; // mark as missing
+                        loadedFrames++;
+                    };
 
-                img.src = `${FRAME_PATH}${num}${FRAME_EXT}`;
-                frames.push(img);
+                    img.src = `${FRAME_PATH}${num}${FRAME_EXT}`;
+                }
             }
-        }
+
 
         // Smooth zoom easing
         function updateZoom() {
@@ -637,23 +668,43 @@
         });
 
         // Draw frame
+        // function drawFrame() {
+        //     ctx.clearRect(0, 0, width, height);
+
+        //     const frameIndex = Math.floor(zoom);
+        //     const nextFrameIndex = Math.min(frameIndex + 1, TOTAL_FRAMES - 1);
+        //     const img = frames[frameIndex];
+        //     const nextImg = frames[nextFrameIndex];
+        //     if (!img || !img.complete) return;
+
+        //     const progress = zoom - frameIndex;
+
+        //     if (progress < 0.5 || !nextImg || !nextImg.complete) {
+        //         drawImageFit(img);
+        //     } else {
+        //         drawImageFit(nextImg);
+        //     }
+        // }
+
         function drawFrame() {
-            ctx.clearRect(0, 0, width, height);
+                ctx.clearRect(0, 0, width, height);
 
-            const frameIndex = Math.floor(zoom);
-            const nextFrameIndex = Math.min(frameIndex + 1, TOTAL_FRAMES - 1);
-            const img = frames[frameIndex];
-            const nextImg = frames[nextFrameIndex];
-            if (!img || !img.complete) return;
+                const frameIndex = Math.floor(zoom);
+                const nextFrameIndex = Math.min(frameIndex + 1, TOTAL_FRAMES - 1);
 
-            const progress = zoom - frameIndex;
+                const img = frames[frameIndex];
+                const nextImg = frames[nextFrameIndex];
 
-            if (progress < 0.5 || !nextImg || !nextImg.complete) {
-                drawImageFit(img);
-            } else {
-                drawImageFit(nextImg);
+                if (img && img.complete) {
+                    drawImageFit(img);
+                } else if (nextImg && nextImg.complete) {
+                    drawImageFit(nextImg);
+                } else {
+                    // fallback: don’t crash, just skip drawing
+                    console.warn(`⚠️ No image available for frame ${frameIndex}`);
+                }
             }
-        }
+
 
         function drawImageFit(image) {
             const imgAspect = image.width / image.height;
