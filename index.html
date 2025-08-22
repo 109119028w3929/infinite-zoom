@@ -690,20 +690,32 @@
                 ctx.clearRect(0, 0, width, height);
 
                 const frameIndex = Math.floor(zoom);
-                const nextFrameIndex = Math.min(frameIndex + 1, TOTAL_FRAMES - 1);
+                let img = frames[frameIndex];
 
-                const img = frames[frameIndex];
-                const nextImg = frames[nextFrameIndex];
+                // Fallback: find nearest available frame
+                if (!img || !img.complete) {
+                    let i = frameIndex;
+                    while (i > 0 && (!frames[i] || !frames[i].complete)) i--;
+                    if (frames[i] && frames[i].complete) {
+                        img = frames[i];
+                    } else {
+                        i = frameIndex;
+                        while (i < TOTAL_FRAMES && (!frames[i] || !frames[i].complete)) i++;
+                        if (frames[i] && frames[i].complete) {
+                            img = frames[i];
+                        }
+                    }
+                }
 
                 if (img && img.complete) {
                     drawImageFit(img);
-                } else if (nextImg && nextImg.complete) {
-                    drawImageFit(nextImg);
                 } else {
-                    // fallback: don’t crash, just skip drawing
-                    console.warn(`⚠️ No image available for frame ${frameIndex}`);
+                    console.warn(`⚠️ No drawable frame found near index ${frameIndex}`);
                 }
             }
+
+
+        
 
 
         function drawImageFit(image) {
